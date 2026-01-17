@@ -27,6 +27,14 @@ const PROBLEMS = [
             genotypes: ['nn', 'Nn'], // Vaca (nn), Toro (Nn)
             phenotypes: ['Pelo rojo', 'Pelo negro']
         },
+        pedigreeSolution: {
+            'g1-m1': { gt: 'Nn', ph: 'Pelo negro' },
+            'g1-f1': { gt: 'Nn', ph: 'Pelo negro' },
+            'g1-m2': { gt: 'Nn', ph: 'Pelo negro' },
+            'g1-f2': { gt: 'nn', ph: 'Pelo rojo' },
+            'p1': { gt: 'Nn', ph: 'Pelo negro' },
+            'p2': { gt: 'nn', ph: 'Pelo rojo' }
+        },
         questions: [
             {
                 id: 'a',
@@ -81,6 +89,11 @@ const PROBLEMS = [
             },
             genotypes: ['Pp'], // Both parents must be heterozygous to have blue-eyed child
             phenotypes: ['Ojos pardos']
+        },
+        pedigreeSolution: {
+            'p1': { gt: 'Pp', ph: 'Ojos pardos' },
+            'p2': { gt: 'Pp', ph: 'Ojos pardos' },
+            'h1': { gt: 'pp', ph: 'Ojos azules' }
         },
         questions: [
             {

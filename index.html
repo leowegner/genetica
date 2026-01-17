@@ -8083,7 +8083,16 @@ SPDX-License-Identifier: Apache-2.0
                 <div class="p-4 bg-white rounded-xl border border-slate-200 shadow-inner">
                     ${structureHTML}
                 </div>
-                <p class="mt-4 text-xs text-slate-500 italic text-center">Rellena las 3 generaciones. Círculo = Mujer, Cuadrado = Hombre.</p>
+                
+                <!-- Pedigree Check Button -->
+                <div class="mt-6 flex flex-col items-center gap-2">
+                    <button onclick="checkPedigree(${p.id})" class="bg-indigo-600 text-white px-8 py-2.5 rounded-lg font-bold hover:bg-indigo-700 transition shadow-md text-sm">
+                        Comprobar Árbol
+                    </button>
+                    <div id="pedigree-feedback" class="text-sm font-bold hidden p-3 rounded-xl bg-white border border-slate-100 w-full text-center"></div>
+                </div>
+                
+                <p class="mt-4 text-xs text-slate-500 italic text-center">Rellena las 3 generaciones (o las indicadas). Círculo = Mujer, Cuadrado = Hombre.</p>
             `;
             container.appendChild(treeDiv);
         }
@@ -8122,7 +8131,7 @@ SPDX-License-Identifier: Apache-2.0
             }
 
             // 2. Simple feedback for now (can expand to check Parents table later)
-            feedback.classList.remove('hidden', 'text-emerald-600', 'text-red-500', 'bg-emerald-50', 'bg-red-50');
+            feedback.classList.remove('hidden', 'text-emerald-600', 'text-red-500', 'bg-emerald-50', 'bg-red-50', 'text-emerald-700', 'text-indigo-700', 'bg-indigo-50');
             if (document.querySelectorAll('[id^="cell-"].bg-emerald-50').length === size * size || (allCorrect && document.querySelectorAll('[id^="cell-"]').length > 0 && document.getElementById('cell-0-0').value)) {
                 // Check if grid is fully filled?
                 let allFilled = true;
@@ -8140,6 +8149,78 @@ SPDX-License-Identifier: Apache-2.0
             } else {
                 feedback.classList.add('text-indigo-700', 'bg-indigo-50');
                 feedback.innerText = 'Hay errores en el cuadro o está incompleto.';
+            }
+        }
+
+        function checkPedigree(pId) {
+            const p = PROBLEMS.find(x => x.id === pId);
+            const feedback = document.getElementById('pedigree-feedback');
+            const nodes = ['g1-m1', 'g1-f1', 'g1-m2', 'g1-f2', 'p1', 'p2', 'h1', 'h2'];
+            let allCorrect = true;
+            let filledCount = 0;
+
+            nodes.forEach(id => {
+                const gtInput = document.getElementById(`node-gt-${id}`);
+                const phInput = document.getElementById(`node-ph-${id}`);
+                if (!gtInput || !phInput) return;
+
+                const gtVal = gtInput.value.trim();
+                const phVal = phInput.value.trim();
+
+                if (!gtVal && !phVal) return;
+                filledCount++;
+
+                // If problem has specific pedigree solution, use it
+                // Otherwise use steps.genotypes/phenotypes as reference
+                let gtCorrect = false;
+                let phCorrect = false;
+
+                if (p.pedigreeSolution && p.pedigreeSolution[id]) {
+                    const sol = p.pedigreeSolution[id];
+                    gtCorrect = normalizeGenotype(gtVal) === normalizeGenotype(sol.gt);
+
+                    const nPhVal = phVal.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const nSolPh = sol.ph.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    phCorrect = nPhVal.includes(nSolPh) || nSolPh.includes(nPhVal);
+                } else {
+                    // Fallback: check if it matches ANY of the genotypes/phenotypes in steps
+                    gtCorrect = p.steps.genotypes.some(g => normalizeGenotype(gtVal) === normalizeGenotype(g));
+                    phCorrect = p.steps.phenotypes.some(ph => {
+                        const nPhVal = phVal.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        const nStepPh = ph.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        return nPhVal.includes(nStepPh) || nStepPh.includes(nPhVal);
+                    });
+                }
+
+                if (gtCorrect) {
+                    gtInput.parentElement.classList.add('border-emerald-500', 'bg-emerald-50');
+                    gtInput.parentElement.classList.remove('border-red-500', 'bg-red-50', 'border-slate-300');
+                } else {
+                    gtInput.parentElement.classList.add('border-red-500', 'bg-red-50');
+                    gtInput.parentElement.classList.remove('border-emerald-500', 'bg-emerald-50', 'border-slate-300');
+                    allCorrect = false;
+                }
+
+                if (phCorrect) {
+                    phInput.classList.add('border-emerald-500', 'bg-emerald-50');
+                    phInput.classList.remove('border-red-500', 'bg-red-50', 'border-slate-100');
+                } else {
+                    phInput.classList.add('border-red-500', 'bg-red-50');
+                    phInput.classList.remove('border-emerald-500', 'bg-emerald-50', 'border-slate-100');
+                    allCorrect = false;
+                }
+            });
+
+            feedback.classList.remove('hidden', 'text-emerald-700', 'bg-emerald-50', 'text-red-700', 'bg-red-50', 'text-indigo-700', 'bg-indigo-50');
+            if (filledCount === 0) {
+                feedback.classList.add('text-indigo-700', 'bg-indigo-50');
+                feedback.innerText = 'Rellena al menos algunos datos del árbol para corregir.';
+            } else if (allCorrect) {
+                feedback.classList.add('text-emerald-700', 'bg-emerald-50');
+                feedback.innerHTML = '<span class="material-symbols-outlined align-bottom">check_circle</span> Árbol correcto y consistente.';
+            } else {
+                feedback.classList.add('text-red-700', 'bg-red-50');
+                feedback.innerText = 'Hay errores en el árbol. Revisa los genotipos y fenotipos.';
             }
         }
 
@@ -8169,6 +8250,12 @@ SPDX-License-Identifier: Apache-2.0
                 const input = document.getElementById(`input-${field}`);
                 const val = input.value.trim();
                 let correct = false;
+
+                if (!val) {
+                    input.classList.remove('border-emerald-500', 'bg-emerald-50', 'border-red-500', 'bg-red-50');
+                    allCorrect = false;
+                    return;
+                }
 
                 // Validation Logic
                 if (field === 'gene') {
@@ -8220,6 +8307,13 @@ SPDX-License-Identifier: Apache-2.0
             const input = btn.previousElementSibling;
             const rawVal = input.value.trim();
             const feedback = btn.parentElement.nextElementSibling;
+
+            if (!rawVal) {
+                feedback.classList.remove('hidden', 'text-emerald-600', 'text-red-500');
+                feedback.classList.add('text-slate-400');
+                feedback.innerText = 'Escribe una respuesta';
+                return;
+            }
 
             const p = PROBLEMS.find(x => x.id === pId);
             const q = p.questions.find(x => x.id === qId);
